@@ -1,5 +1,5 @@
 [project]
-name = "python-idempotency"
+name = "py-dempotency"
 version = "0.1.0"
 description = "A lightweight idempotency middleware for FastAPI"
 authors = [{ name="Ahmad Yusuf Ardabilli" }]

@@ -1,0 +1,101 @@
+Metadata-Version: 2.4
+Name: py-dempotency
+Version: 0.1.0
+Summary: A lightweight idempotency middleware for FastAPI
+Author: Ahmad Yusuf Ardabilli
+Project-URL: Homepage, https://github.com/ArdaBilly1/py-dempotency
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+
+# py-dempotency
+
+Idempotency middleware for FastAPI/Starlette applications that prevents duplicate operations by caching responses based on idempotency keys.
+
+## Overview
+
+This middleware intercepts HTTP requests containing an `Idempotency-Key` header and ensures that identical requests return the same response. This is critical for preventing duplicate operations in scenarios like:
+
+- Payment processing
+- Order creation
+- Account operations
+- Any non-idempotent API endpoints
+
+## Installation
+
+```bash
+pip install pydantic starlette
+```
+
+## Quick Start
+
+```python
+from fastapi import FastAPI
+from idempotency.middleware import IdempotencyMiddleware
+
+app = FastAPI()
+app.add_middleware(IdempotencyMiddleware)
+
+@app.post("/payments")
+async def create_payment(amount: float):
+    # This endpoint is now protected by idempotency
+    # Duplicate requests with the same Idempotency-Key will return the cached response
+    return {"status": "success", "amount": amount}
+```
+
+## Usage
+
+Clients must include an `Idempotency-Key` header in their requests:
+
+```bash
+curl -X POST https://api.example.com/payments \
+  -H "Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 100.00}'
+```
+
+If the same request is sent again with the same key, the cached response is returned immediately without re-executing the endpoint.
+
+## Custom Storage Backend
+
+By default, responses are stored in memory. You can implement custom storage backends (Redis, database, etc.):
+
+```python
+from idempotency.models import CachedResponse
+from typing import Optional
+
+class RedisStorage:
+    async def get(self, key: str) -> Optional[CachedResponse]:
+        # Retrieve from Redis
+        pass
+    
+    async def set(self, key: str, response: CachedResponse) -> None:
+        # Store in Redis
+        pass
+
+app.add_middleware(IdempotencyMiddleware, storage=RedisStorage())
+```
+
+## Architecture
+
+- **Middleware**: Intercepts requests and manages the caching flow
+- **Storage**: Abstract storage interface (default: in-memory)
+- **Models**: Pydantic model for serializing cached responses
+- **Exceptions**: Custom exception for missing idempotency keys
+
+## How It Works
+
+1. Request arrives with `Idempotency-Key` header
+2. Middleware checks if response is cached for this key
+3. If cached: return cached response immediately
+4. If not cached: execute request, cache response, return response
+
+## Limitations
+
+- Memory storage does not persist across restarts
+- No TTL/expiration on cached responses (implement in custom storage)
+- All responses are cached regardless of size
+- Requires `Idempotency-Key` header on all requests
+
+## License
+
+MIT
